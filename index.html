@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElitePOS Abarrotes - Sistema Profesional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .tab-active { background-color: #1e293b; color: white; border-left: 4px solid #3b82f6; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        @media print { .no-print { display: none !important; } .print-area { display: block !important; } }
+        .animate-pop { animation: pop 0.2s ease-out; }
+        @keyframes pop { 0% { transform: scale(0.95); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Auth Overlay -->
+    <div id="login-screen" class="fixed inset-0 z-[200] bg-slate-900 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+            <h2 class="text-2xl font-black text-slate-800 mb-2">ElitePOS</h2>
+            <p class="text-slate-500 text-sm mb-6">Inicie sesión para continuar</p>
+            <div class="space-y-4">
+                <input type="text" id="login-user" placeholder="Usuario" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="handleLogin()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-white border-b h-16 flex items-center justify-between px-6 no-print shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600 p-2 rounded-lg"><i data-lucide="shopping-basket" class="text-white w-6 h-6"></i></div>
+            <div>
+                <h1 class="font-black text-slate-800 leading-none">ElitePOS <span class="text-blue-600">Abarrotes</span></h1>
+                <p id="branch-name" class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sucursal Matriz</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="cash-pill" class="hidden md:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-600">
+                <span class="w-2 h-2 rounded-full bg-red-500" id="cash-indicator"></span>
+                <span id="cash-text">Caja Cerrada</span>
+            </div>
+            <div class="h-8 w-px bg-slate-200"></div>
+            <div class="text-right hidden sm:block">
+                <p id="ui-username" class="text-sm font-bold text-slate-700">Admin</p>
+                <p id="ui-role" class="text-[10px] text-slate-400 uppercase">Administrador</p>
+            </div>
+            <button onclick="logout()" class="p-2 hover:bg-red-50 text-red-500 rounded-lg transition"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-slate-50 border-r no-print flex flex-col">
+            <nav class="flex-1 p-4 space-y-1 overflow-y-auto custom-scroll">
+                <p class="text-[10px] font-bold text-slate-400 uppercase px-4 mb-2">Operaciones</p>
+                <button onclick="switchTab('pos')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:shadow-sm" data-tab="pos"><i data-lucide="layout-grid" class="w-4 h-4"></i> Ventas (F1)</button>
+                <button onclick="switchTab('inventory')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:shadow-sm" data-tab="inventory"><i data-lucide="box" class="w-4 h-4"></i> Inventario (F2)</button>
+                <button onclick="switchTab('purchases')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:shadow-sm" data-tab="purchases"><i data-lucide="truck" class="w-4 h-4"></i> Compras / Entradas</button>
+                
+                <p class="text-[10px] font-bold text-slate-400 uppercase px-4 mt-6 mb-2">Administración</p>
+                <button onclick="switchTab('reports')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:shadow-sm" data-tab="reports"><i data-lucide="bar-chart-big" class="w-4 h-4"></i> Reportes y Ganancia</button>
+                <button onclick="switchTab('cash')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:shadow-sm" data-tab="cash"><i data-lucide="calculator" class="w-4 h-4"></i> Corte de Caja</button>
+                <button onclick="switchTab('settings')" class="nav-link w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-white hover:shadow-sm" data-tab="settings"><i data-lucide="settings-2" class="w-4 h-4"></i> Configuración</button>
+            </nav>
+            <div class="p-4 border-t bg-white">
+                <button onclick="backupData()" class="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"><i data-lucide="download-cloud" class="w-3 h-3"></i> Respaldar Datos</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-hidden relative flex flex-col">
+            
+            <!-- Ventas POS -->
+            <section id="tab-pos" class="tab-content h-full flex flex-col lg:flex-row p-4 gap-4 hidden">
+                <div class="flex-1 flex flex-col gap-4 overflow-hidden">
+                    <div class="flex gap-2">
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5"></i>
+                            <input type="text" id="pos-input" onkeyup="handlePOSSearch(event)" class="w-full pl-12 pr-4 py-4 bg-white border-2 border-slate-100 rounded-2xl shadow-sm outline-none focus:border-blue-500 text-lg font-medium" placeholder="Código de barras o nombre...">
+                        </div>
+                        <button onclick="toggleScanner()" class="bg-white border-2 border-slate-100 p-4 rounded-2xl hover:border-blue-500 text-slate-600"><i data-lucide="scan-barcode"></i></button>
+                    </div>
+
+                    <!-- Filtros rápidos -->
+                    <div id="pos-cats" class="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                        <button onclick="filterPOS('all')" class="whitespace-nowrap px-4 py-2 bg-blue-600 text-white rounded-full text-xs font-bold">Todos</button>
+                    </div>
+
+                    <!-- Grid Productos -->
+                    <div id="pos-grid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto flex-1 custom-scroll">
+                        <!-- Items dinámicos -->
+                    </div>
+                </div>
+
+                <!-- Carrito / Ticket -->
+                <div class="w-full lg:w-[400px] bg-white rounded-3xl shadow-xl border flex flex-col overflow-hidden">
+                    <div class="p-6 bg-slate-900 text-white">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold flex items-center gap-2"><i data-lucide="shopping-cart" class="w-4 h-4"></i> Venta Actual</h3>
+                            <button onclick="clearCart()" class="text-[10px] bg-white/10 px-2 py-1 rounded hover:bg-white/20 uppercase font-bold">Limpiar</button>
+                        </div>
+                        <select id="pos-client" class="w-full bg-white/10 border-none rounded-xl px-4 py-2 text-sm outline-none">
+                            <option value="0" class="text-slate-800">Cliente General</option>
+                        </select>
+                    </div>
+
+                    <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-3 custom-scroll">
+                        <!-- Cart JS -->
+                    </div>
+
+                    <div class="p-6 border-t bg-slate-50 space-y-3">
+                        <div class="flex justify-between text-slate-500 font-medium">
+                            <span>Subtotal</span>
+                            <span id="cart-subtotal">$0.00</span>
+                        </div>
+                        <div class="flex justify-between text-slate-500 font-medium">
+                            <span id="tax-label">Impuesto (0%)</span>
+                            <span id="cart-tax">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-end pt-2 border-t border-slate-200">
+                            <span class="text-slate-800 font-black text-xl">TOTAL</span>
+                            <span id="cart-total" class="text-3xl font-black text-blue-600">$0.00</span>
+                        </div>
+                        <button onclick="openCheckout()" id="btn-pay" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-lg shadow-lg shadow-blue-200 hover:bg-blue-700 transition active:scale-[0.98]">COBRAR (F10)</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Inventario -->
+            <section id="tab-inventory" class="tab-content h-full p-6 hidden flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800">Catálogo de Productos</h2>
+                        <p class="text-slate-500 text-sm">Gestiona precios, stock y unidades de medida.</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="openProductModal()" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700"><i data-lucide="plus-circle" class="w-5 h-5"></i> Nuevo</button>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl border shadow-sm flex-1 overflow-hidden flex flex-col">
+                    <div class="p-4 border-b bg-slate-50 flex gap-4">
+                        <div class="relative flex-1">
+                            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                            <input type="text" id="inv-search" onkeyup="renderInventory()" class="w-full pl-10 pr-4 py-2 border rounded-lg outline-none" placeholder="Buscar por nombre o código...">
+                        </div>
+                        <select id="inv-filter-stock" onchange="renderInventory()" class="border rounded-lg px-4 text-sm font-medium">
+                            <option value="all">Todos los estados</option>
+                            <option value="low">Stock Bajo</option>
+                            <option value="out">Sin Stock</option>
+                        </select>
+                    </div>
+                    <div class="overflow-x-auto flex-1 custom-scroll">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold sticky top-0 border-b">
+                                <tr>
+                                    <th class="px-6 py-4">Producto</th>
+                                    <th class="px-6 py-4">Categoría</th>
+                                    <th class="px-6 py-4">U. Medida</th>
+                                    <th class="px-6 py-4 text-right">Costo</th>
+                                    <th class="px-6 py-4 text-right">Venta</th>
+                                    <th class="px-6 py-4 text-center">Stock</th>
+                                    <th class="px-6 py-4 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table" class="divide-y text-sm">
+                                <!-- Inventario JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Compras / Entrada de Mercancía -->
+            <section id="tab-purchases" class="tab-content h-full p-6 hidden">
+                <div class="max-w-4xl mx-auto space-y-6">
+                    <div class="bg-white p-8 rounded-3xl border shadow-sm">
+                        <h2 class="text-xl font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="truck" class="text-blue-600"></i> Entrada de Mercancía</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Producto a Ingresar</label>
+                                    <select id="buy-product" class="w-full px-4 py-3 border rounded-xl bg-slate-50 outline-none"></select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cantidad</label>
+                                        <input type="number" id="buy-qty" class="w-full px-4 py-3 border rounded-xl outline-none" placeholder="0.00">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Costo Unitario ($)</label>
+                                        <input type="number" id="buy-cost" class="w-full px-4 py-3 border rounded-xl outline-none" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Proveedor</label>
+                                    <select id="buy-provider" class="w-full px-4 py-3 border rounded-xl bg-slate-50 outline-none">
+                                        <option value="General">Proveedor General</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nota de Referencia</label>
+                                    <input type="text" id="buy-note" class="w-full px-4 py-3 border rounded-xl outline-none" placeholder="Factura, No. Pedido...">
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="processPurchase()" class="w-full mt-8 bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-slate-800 transition">REGISTRAR ENTRADA EN KARDEX</button>
+                    </div>
+
+                    <div class="bg-white rounded-3xl border shadow-sm overflow-hidden">
+                        <div class="p-4 bg-slate-50 border-b"><h3 class="font-bold text-sm">Últimos Movimientos de Stock</h3></div>
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-100 font-bold">
+                                <tr>
+                                    <th class="px-6 py-3">Fecha</th>
+                                    <th class="px-6 py-3">Producto</th>
+                                    <th class="px-6 py-3">Tipo</th>
+                                    <th class="px-6 py-3 text-right">Cant.</th>
+                                    <th class="px-6 py-3">Referencia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kardex-table" class="divide-y">
+                                <!-- Kardex JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reportes -->
+            <section id="tab-reports" class="tab-content h-full p-6 hidden overflow-y-auto custom-scroll">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ventas Totales</p>
+                        <h3 id="rep-total-sales" class="text-2xl font-black text-slate-800">$0.00</h3>
+                        <div class="mt-2 text-[10px] text-green-600 font-bold bg-green-50 px-2 py-1 rounded inline-block">Acumulado Histórico</div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ganancia Neta (Utilidad)</p>
+                        <h3 id="rep-total-profit" class="text-2xl font-black text-blue-600">$0.00</h3>
+                        <p class="text-[10px] text-slate-400 mt-1 italic">Venta - Costo</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor de Inventario</p>
+                        <h3 id="rep-inv-value" class="text-2xl font-black text-amber-600">$0.00</h3>
+                        <p class="text-[10px] text-slate-400 mt-1 italic">A precio de costo</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                        <h4 class="font-bold text-slate-800 mb-6">Rotación de Productos (Top 5)</h4>
+                        <div id="top-products-ui" class="space-y-4">
+                            <!-- JS -->
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border shadow-sm">
+                        <h4 class="font-bold text-slate-800 mb-6">Desempeño de Ventas</h4>
+                        <canvas id="chart-sales" height="200"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Caja / Corte -->
+            <section id="tab-cash" class="tab-content h-full p-6 hidden">
+                <div class="max-w-md mx-auto bg-white p-8 rounded-3xl border shadow-xl text-center space-y-6">
+                    <div id="cash-open-ui" class="space-y-6">
+                        <div class="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-blue-600"><i data-lucide="unlock" class="w-10 h-10"></i></div>
+                        <h2 class="text-2xl font-black text-slate-800">Apertura de Caja</h2>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Fondo de Caja (Cambio)</label>
+                            <input type="number" id="cash-init-amt" class="w-full px-4 py-4 border-2 border-slate-100 rounded-2xl text-center text-2xl font-black outline-none focus:border-blue-500" value="0.00">
+                        </div>
+                        <button onclick="handleCashOpen()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700">INICIAR TURNO</button>
+                    </div>
+
+                    <div id="cash-close-ui" class="hidden space-y-6">
+                        <div class="bg-amber-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto text-amber-600"><i data-lucide="lock" class="w-10 h-10"></i></div>
+                        <h2 class="text-2xl font-black text-slate-800">Cerrar Turno / Corte</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-slate-50 p-4 rounded-2xl text-left border">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Vendido en Turno</p>
+                                <p id="cash-summary-sales" class="text-xl font-black text-slate-800">$0.00</p>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-2xl text-left border">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">Efectivo Esperado</p>
+                                <p id="cash-summary-total" class="text-xl font-black text-blue-600">$0.00</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Efectivo Real en Caja (Arqueo)</label>
+                            <input type="number" id="cash-real-amt" class="w-full px-4 py-4 border-2 border-slate-100 rounded-2xl text-center text-2xl font-black outline-none focus:border-amber-500" placeholder="0.00">
+                        </div>
+                        <button onclick="handleCashClose()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-slate-800">REALIZAR CORTE DE CAJA</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Modales -->
+    <!-- Modal Pago -->
+    <div id="modal-checkout" class="fixed inset-0 z-[150] bg-slate-900/60 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-pop">
+            <div class="p-6 border-b flex justify-between items-center bg-slate-50">
+                <h3 class="font-black text-slate-800">Finalizar Venta</h3>
+                <button onclick="closeModal('modal-checkout')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"></i></button>
+            </div>
+            <div class="p-8 space-y-6">
+                <div class="text-center">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Neto</p>
+                    <h2 id="checkout-total" class="text-5xl font-black text-blue-600 my-2">$0.00</h2>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Paga con (Efectivo)</label>
+                        <input type="number" id="checkout-received" onkeyup="calcChange()" class="w-full px-6 py-5 border-2 border-slate-100 rounded-2xl text-center text-3xl font-black outline-none focus:border-blue-500" placeholder="0.00">
+                    </div>
+                    <div class="flex justify-between items-center p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                        <span class="font-bold text-blue-800 uppercase text-xs">Cambio a Entregar:</span>
+                        <span id="checkout-change" class="text-2xl font-black text-blue-800">$0.00</span>
+                    </div>
+                </div>
+                <button onclick="finalizeSale()" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-blue-700 transition shadow-xl shadow-blue-200">FINALIZAR E IMPRIMIR (F10)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Producto -->
+    <div id="modal-product" class="fixed inset-0 z-[150] bg-slate-900/60 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-pop">
+            <div class="p-6 border-b bg-slate-50 flex justify-between">
+                <h3 id="product-modal-title" class="font-black text-slate-800">Datos del Producto</h3>
+                <button onclick="closeModal('modal-product')"><i data-lucide="x" class="text-slate-400"></i></button>
+            </div>
+            <div class="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="p-id">
+                <div class="md:col-span-2">
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Nombre Completo</label>
+                    <input type="text" id="p-name" class="w-full p-3 border rounded-xl outline-none focus:border-blue-500 font-medium">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Código de Barras</label>
+                    <input type="text" id="p-code" class="w-full p-3 border rounded-xl outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Categoría</label>
+                    <input type="text" id="p-cat" list="cats-list" class="w-full p-3 border rounded-xl outline-none">
+                    <datalist id="cats-list"></datalist>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Precio Costo ($)</label>
+                    <input type="number" id="p-cost" class="w-full p-3 border rounded-xl outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Precio Venta ($)</label>
+                    <input type="number" id="p-price" class="w-full p-3 border rounded-xl outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">U. de Medida</label>
+                    <select id="p-unit" class="w-full p-3 border rounded-xl outline-none">
+                        <option value="pza">Pieza (Unidad)</option>
+                        <option value="kg">Kilogramo (Peso)</option>
+                        <option value="gr">Gramo (Peso)</option>
+                        <option value="lt">Litro (Volumen)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 uppercase">Stock Mínimo</label>
+                    <input type="number" id="p-min" class="w-full p-3 border rounded-xl outline-none" value="5">
+                </div>
+                <div class="md:col-span-2 pt-4">
+                    <button onclick="saveProduct()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-slate-800">GUARDAR PRODUCTO</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Principal -->
+    <script>
+        // --- BASE DE DATOS LOCALSTORAGE ---
+        const DB = {
+            get: (key, def = []) => {
+                try {
+                    const data = localStorage.getItem('elitepos_' + key);
+                    return data ? JSON.parse(data) : def;
+                } catch (e) { return def; }
+            },
+            set: (key, val) => {
+                try { localStorage.setItem('elitepos_' + key, JSON.stringify(val)); } catch (e) { console.error("Error guardando:", e); }
+            }
+        };
+
+        // Estado Global
+        let products = DB.get('products', []);
+        let sales = DB.get('sales', []);
+        let kardex = DB.get('kardex', []);
+        let settings = DB.get('settings', { tax: 0, bizName: 'Abarrotes La Matriz', branch: 'Matriz' });
+        let cash = DB.get('cash', { isOpen: false, log: [] });
+        let currentUser = DB.get('user_session', null);
+        
+        let cart = [];
+        let chartSales = null;
+
+        // --- INICIO ---
+        window.onload = () => {
+            lucide.createIcons();
+            if (!currentUser) {
+                document.getElementById('login-screen').classList.remove('hidden');
+            } else {
+                initApp();
+            }
+            initKeyEvents();
+        };
+
+        function handleLogin() {
+            const u = document.getElementById('login-user').value;
+            const p = document.getElementById('login-pass').value;
+            if (u && p === '1234') {
+                currentUser = { name: u, role: 'Administrador' };
+                DB.set('user_session', currentUser);
+                location.reload();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('elitepos_user_session');
+            location.reload();
+        }
+
+        function initApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('ui-username').innerText = currentUser.name;
+            document.getElementById('branch-name').innerText = settings.branch;
+            switchTab('pos');
+            updateCashIndicator();
+            renderPOS();
+            updatePacks();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('tab-active'));
+            
+            const target = document.getElementById('tab-' + tab);
+            if(target) target.classList.remove('hidden');
+            
+            const link = document.querySelector(`[data-tab="${tab}"]`);
+            if(link) link.classList.add('tab-active');
+
+            if (tab === 'inventory') renderInventory();
+            if (tab === 'reports') renderReports();
+            if (tab === 'cash') renderCashUI();
+            if (tab === 'purchases') renderPurchases();
+        }
+
+        // --- LOGICA DE VENTAS (POS) ---
+        function handlePOSSearch(e) {
+            if (e.key === 'Enter') {
+                const query = e.target.value.trim();
+                const prod = products.find(p => p.code === query || p.name.toLowerCase() === query.toLowerCase());
+                if (prod) {
+                    addToCart(prod.id);
+                    e.target.value = '';
+                } else {
+                    renderPOS(query);
+                }
+            } else {
+                renderPOS(e.target.value);
+            }
+        }
+
+        function renderPOS(filter = '') {
+            const grid = document.getElementById('pos-grid');
+            const filtered = products.filter(p => 
+                p.name.toLowerCase().includes(filter.toLowerCase()) || 
+                p.code.includes(filter)
+            );
+
+            grid.innerHTML = filtered.map(p => `
+                <div onclick="addToCart(${p.id})" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 hover:border-blue-500 cursor-pointer transition active:scale-95">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] font-black text-slate-400 uppercase">${p.unit}</span>
+                        <span class="text-[10px] font-bold ${p.stock <= p.min ? 'text-red-500' : 'text-green-500'}">Stock: ${p.stock}</span>
+                    </div>
+                    <h4 class="font-bold text-slate-800 text-sm truncate mb-1">${p.name}</h4>
+                    <p class="text-blue-600 font-black">$${parseFloat(p.price).toFixed(2)}</p>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(id) {
+            if (!cash.isOpen) return alert("Debe abrir la caja primero");
+            
+            const p = products.find(item => item.id === id);
+            if (!p) return;
+
+            // Manejo de venta por peso si es KG o GR
+            let qty = 1;
+            if (p.unit === 'kg' || p.unit === 'lt') {
+                const input = prompt(`Ingrese cantidad (${p.unit}):`, "1");
+                qty = parseFloat(input);
+                if (isNaN(qty) || qty <= 0) return;
+            }
+
+            if (p.stock < qty) return alert("Stock insuficiente");
+
+            const existing = cart.find(item => item.id === id);
+            if (existing && p.unit === 'pza') {
+                existing.qty += 1;
+            } else {
+                cart.push({ ...p, qty });
+            }
+            updateCart();
+        }
+
+        function updateCart() {
+            const container = document.getElementById('cart-items');
+            container.innerHTML = cart.map((item, idx) => `
+                <div class="flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border">
+                    <div class="flex-1 overflow-hidden">
+                        <p class="text-xs font-bold text-slate-700 truncate">${item.name}</p>
+                        <p class="text-[10px] text-slate-400">${item.qty} ${item.unit} x $${item.price}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-black text-slate-800">$${(item.qty * item.price).toFixed(2)}</span>
+                        <button onclick="removeFromCart(${idx})" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            
+            const subtotal = cart.reduce((s, i) => s + (i.qty * i.price), 0);
+            const tax = subtotal * (settings.tax / 100);
+            const total = subtotal + tax;
+
+            document.getElementById('cart-subtotal').innerText = `$${subtotal.toFixed(2)}`;
+            document.getElementById('cart-tax').innerText = `$${tax.toFixed(2)}`;
+            document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+            
+            lucide.createIcons();
+        }
+
+        function removeFromCart(idx) {
+            cart.splice(idx, 1);
+            updateCart();
+        }
+
+        function clearCart() {
+            if (confirm("¿Vaciar carrito?")) {
+                cart = [];
+                updateCart();
+            }
+        }
+
+        // --- COBRO ---
+        function openCheckout() {
+            if (cart.length === 0) return;
+            const total = parseFloat(document.getElementById('cart-total').innerText.replace('$',''));
+            document.getElementById('checkout-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('modal-checkout').classList.remove('hidden');
+            document.getElementById('checkout-received').value = '';
+            document.getElementById('checkout-change').innerText = '$0.00';
+            setTimeout(() => document.getElementById('checkout-received').focus(), 200);
+        }
+
+        function calcChange() {
+            const total = parseFloat(document.getElementById('checkout-total').innerText.replace('$',''));
+            const rec = parseFloat(document.getElementById('checkout-received').value) || 0;
+            const diff = rec - total;
+            document.getElementById('checkout-change').innerText = `$${(diff > 0 ? diff : 0).toFixed(2)}`;
+        }
+
+        function finalizeSale() {
+            const total = parseFloat(document.getElementById('checkout-total').innerText.replace('$',''));
+            const rec = parseFloat(document.getElementById('checkout-received').value) || 0;
+            if (rec < total) return alert("Cantidad insuficiente");
+
+            const saleId = Date.now();
+            const sale = {
+                id: saleId,
+                date: new Date().toISOString(),
+                items: [...cart],
+                total: total,
+                received: rec,
+                change: rec - total,
+                profit: cart.reduce((sum, item) => sum + (item.qty * (item.price - (item.cost || 0))), 0),
+                seller: currentUser.name
+            };
+
+            // Descontar Stock y Kardex
+            cart.forEach(item => {
+                const p = products.find(prod => prod.id === item.id);
+                if (p) {
+                    p.stock = Math.max(0, p.stock - item.qty);
+                    kardex.push({
+                        date: sale.date,
+                        prodId: p.id,
+                        prodName: p.name,
+                        type: 'VENTA',
+                        qty: -item.qty,
+                        ref: 'Venta #' + saleId
+                    });
+                }
+            });
+
+            sales.push(sale);
+            DB.set('sales', sales);
+            DB.set('products', products);
+            DB.set('kardex', kardex);
+
+            alert("Venta procesada con éxito.");
+            closeModal('modal-checkout');
+            cart = [];
+            updateCart();
+            renderPOS();
+        }
+
+        // --- INVENTARIO ---
+        function renderInventory() {
+            const q = document.getElementById('inv-search').value.toLowerCase();
+            const f = document.getElementById('inv-filter-stock').value;
+            const list = document.getElementById('inventory-table');
+
+            const filtered = products.filter(p => {
+                const matchSearch = p.name.toLowerCase().includes(q) || p.code.includes(q);
+                if (f === 'low') return matchSearch && p.stock <= p.min;
+                if (f === 'out') return matchSearch && p.stock <= 0;
+                return matchSearch;
+            });
+
+            list.innerHTML = filtered.map(p => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-4 font-bold text-slate-700">${p.name}<br><span class="text-[10px] text-slate-400">${p.code}</span></td>
+                    <td class="px-6 py-4 text-slate-500">${p.category}</td>
+                    <td class="px-6 py-4 uppercase font-bold text-slate-400 text-xs">${p.unit}</td>
+                    <td class="px-6 py-4 text-right">$${parseFloat(p.cost || 0).toFixed(2)}</td>
+                    <td class="px-6 py-4 text-right font-black text-blue-600">$${parseFloat(p.price).toFixed(2)}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-1 rounded-full font-bold text-[10px] ${p.stock <= p.min ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                            ${p.stock}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="openProductModal(${p.id})" class="p-2 text-slate-400 hover:text-blue-600"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                        <button onclick="deleteProduct(${p.id})" class="p-2 text-slate-400 hover:text-red-600"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function openProductModal(id = null) {
+            const m = document.getElementById('modal-product');
+            m.classList.remove('hidden');
+            if (id) {
+                const p = products.find(i => i.id === id);
+                document.getElementById('p-id').value = p.id;
+                document.getElementById('p-name').value = p.name;
+                document.getElementById('p-code').value = p.code;
+                document.getElementById('p-cat').value = p.category;
+                document.getElementById('p-cost').value = p.cost || 0;
+                document.getElementById('p-price').value = p.price;
+                document.getElementById('p-unit').value = p.unit;
+                document.getElementById('p-min').value = p.min;
+            } else {
+                document.getElementById('p-id').value = '';
+                document.getElementById('p-name').value = '';
+                document.getElementById('p-code').value = '';
+                document.getElementById('p-cat').value = '';
+                document.getElementById('p-cost').value = '';
+                document.getElementById('p-price').value = '';
+                document.getElementById('p-unit').value = 'pza';
+                document.getElementById('p-min').value = '5';
+            }
+        }
+
+        function saveProduct() {
+            const id = document.getElementById('p-id').value;
+            const data = {
+                id: id ? parseInt(id) : Date.now(),
+                name: document.getElementById('p-name').value,
+                code: document.getElementById('p-code').value,
+                category: document.getElementById('p-cat').value || 'General',
+                cost: parseFloat(document.getElementById('p-cost').value) || 0,
+                price: parseFloat(document.getElementById('p-price').value) || 0,
+                unit: document.getElementById('p-unit').value,
+                min: parseInt(document.getElementById('p-min').value) || 5,
+                stock: id ? (products.find(i => i.id == id)?.stock || 0) : 0
+            };
+
+            if (id) {
+                const idx = products.findIndex(i => i.id == id);
+                products[idx] = data;
+            } else {
+                products.push(data);
+            }
+
+            DB.set('products', products);
+            closeModal('modal-product');
+            renderInventory();
+            renderPOS();
+        }
+
+        function deleteProduct(id) {
+            if (confirm("¿Eliminar definitivamente?")) {
+                products = products.filter(i => i.id !== id);
+                DB.set('products', products);
+                renderInventory();
+            }
+        }
+
+        // --- COMPRAS Y KARDEX ---
+        function renderPurchases() {
+            const select = document.getElementById('buy-product');
+            select.innerHTML = '<option value="">Seleccione producto...</option>' + 
+                products.map(p => `<option value="${p.id}">${p.name} (${p.unit})</option>`).join('');
+            
+            const list = document.getElementById('kardex-table');
+            const recent = [...kardex].reverse().slice(0, 15);
+            list.innerHTML = recent.map(k => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-3 text-slate-400">${new Date(k.date).toLocaleString()}</td>
+                    <td class="px-6 py-3 font-bold text-slate-700">${k.prodName}</td>
+                    <td class="px-6 py-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-black ${k.type === 'VENTA' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}">
+                            ${k.type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-3 text-right font-bold">${k.qty > 0 ? '+' : ''}${k.qty}</td>
+                    <td class="px-6 py-3 text-slate-500">${k.ref}</td>
+                </tr>
+            `).join('');
+        }
+
+        function processPurchase() {
+            const pId = parseInt(document.getElementById('buy-product').value);
+            const qty = parseFloat(document.getElementById('buy-qty').value);
+            const cost = parseFloat(document.getElementById('buy-cost').value);
+            const provider = document.getElementById('buy-provider').value;
+            const note = document.getElementById('buy-note').value;
+
+            if (!pId || !qty || qty <= 0) return alert("Complete los datos correctamente");
+
+            const p = products.find(i => i.id === pId);
+            if (p) {
+                p.stock += qty;
+                p.cost = cost || p.cost; // Actualiza costo si se ingresa uno nuevo
+                kardex.push({
+                    date: new Date().toISOString(),
+                    prodId: p.id,
+                    prodName: p.name,
+                    type: 'COMPRA',
+                    qty: qty,
+                    ref: provider + (note ? ' - ' + note : '')
+                });
+                DB.set('products', products);
+                DB.set('kardex', kardex);
+                alert("Stock actualizado");
+                renderPurchases();
+                // Limpiar form
+                document.getElementById('buy-qty').value = '';
+                document.getElementById('buy-cost').value = '';
+            }
+        }
+
+        // --- CAJA ---
+        function updateCashIndicator() {
+            const pill = document.getElementById('cash-pill');
+            const ind = document.getElementById('cash-indicator');
+            const txt = document.getElementById('cash-text');
+            
+            pill.classList.remove('hidden');
+            if (cash.isOpen) {
+                ind.classList.replace('bg-red-500', 'bg-green-500');
+                txt.innerText = 'Caja Abierta';
+            } else {
+                ind.classList.replace('bg-green-500', 'bg-red-500');
+                txt.innerText = 'Caja Cerrada';
+            }
+        }
+
+        function renderCashUI() {
+            const openView = document.getElementById('cash-open-ui');
+            const closeView = document.getElementById('cash-close-ui');
+            
+            if (cash.isOpen) {
+                openView.classList.add('hidden');
+                closeView.classList.remove('hidden');
+                
+                // Calcular acumulado
+                const turnSales = sales.filter(s => new Date(s.date) > new Date(cash.openedAt));
+                const totalSold = turnSales.reduce((sum, s) => sum + s.total, 0);
+                document.getElementById('cash-summary-sales').innerText = `$${totalSold.toFixed(2)}`;
+                document.getElementById('cash-summary-total').innerText = `$${(totalSold + (cash.initial || 0)).toFixed(2)}`;
+            } else {
+                openView.classList.remove('hidden');
+                closeView.classList.add('hidden');
+            }
+        }
+
+        function handleCashOpen() {
+            const amt = parseFloat(document.getElementById('cash-init-amt').value) || 0;
+            cash = {
+                isOpen: true,
+                openedAt: new Date().toISOString(),
+                initial: amt,
+                user: currentUser.name
+            };
+            DB.set('cash', cash);
+            updateCashIndicator();
+            renderCashUI();
+        }
+
+        function handleCashClose() {
+            const real = parseFloat(document.getElementById('cash-real-amt').value) || 0;
+            const turnSales = sales.filter(s => new Date(s.date) > new Date(cash.openedAt));
+            const totalSold = turnSales.reduce((sum, s) => sum + s.total, 0);
+            const expected = totalSold + cash.initial;
+            const diff = real - expected;
+
+            let log = `--- CORTE DE CAJA ---\n`;
+            log += `Fecha: ${new Date().toLocaleString()}\n`;
+            log += `Vendido: $${totalSold.toFixed(2)}\n`;
+            log += `Fondo: $${cash.initial.toFixed(2)}\n`;
+            log += `Esperado: $${expected.toFixed(2)}\n`;
+            log += `Real: $${real.toFixed(2)}\n`;
+            log += `Diferencia: $${diff.toFixed(2)}\n`;
+            log += `Estado: ${diff === 0 ? 'COMPLETO' : (diff > 0 ? 'SOBRANTE' : 'FALTANTE')}`;
+
+            alert(log);
+            cash.isOpen = false;
+            DB.set('cash', cash);
+            updateCashIndicator();
+            renderCashUI();
+        }
+
+        // --- REPORTES ---
+        function renderReports() {
+            const totalRev = sales.reduce((sum, s) => sum + s.total, 0);
+            const totalProf = sales.reduce((sum, s) => sum + s.profit, 0);
+            const invVal = products.reduce((sum, p) => sum + (p.stock * (p.cost || 0)), 0);
+
+            document.getElementById('rep-total-sales').innerText = `$${totalRev.toFixed(2)}`;
+            document.getElementById('rep-total-profit').innerText = `$${totalProf.toFixed(2)}`;
+            document.getElementById('rep-inv-value').innerText = `$${invVal.toFixed(2)}`;
+
+            // Top productos
+            const ranking = {};
+            sales.forEach(s => {
+                s.items.forEach(item => {
+                    ranking[item.name] = (ranking[item.name] || 0) + item.qty;
+                });
+            });
+
+            const top = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            document.getElementById('top-products-ui').innerHTML = top.map(([name, qty]) => `
+                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
+                    <span class="text-sm font-bold text-slate-700">${name}</span>
+                    <span class="text-xs font-black text-blue-600">${qty} vendidos</span>
+                </div>
+            `).join('') || '<p class="text-center text-slate-400 py-4">Sin datos suficientes</p>';
+
+            // Chart
+            const ctx = document.getElementById('chart-sales').getContext('2d');
+            if (chartSales) chartSales.destroy();
+            chartSales = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sales.slice(-10).map(s => new Date(s.date).toLocaleTimeString()),
+                    datasets: [{
+                        label: 'Histórico de Ventas ($)',
+                        data: sales.slice(-10).map(s => s.total),
+                        borderColor: '#3b82f6',
+                        tension: 0.3,
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.05)'
+                    }]
+                },
+                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // --- UTILS ---
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        
+        function backupData() {
+            const data = { products, sales, kardex, settings, cash };
+            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `elitepos_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function initKeyEvents() {
+            window.addEventListener('keydown', e => {
+                if (e.key === 'F1') { e.preventDefault(); switchTab('pos'); }
+                if (e.key === 'F2') { e.preventDefault(); switchTab('inventory'); }
+                if (e.key === 'F10') {
+                    e.preventDefault();
+                    if (!document.getElementById('modal-checkout').classList.contains('hidden')) finalizeSale();
+                    else openCheckout();
+                }
+            });
+        }
+
+        function updatePacks() {
+            const cats = [...new Set(products.map(p => p.category))];
+            const list = document.getElementById('cats-list');
+            list.innerHTML = cats.map(c => `<option value="${c}">`).join('');
+        }
+
+    </script>
+</body>
+</html>
