@@ -3,58 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Negocio - Gestión Total</title>
+    <title>Mi Negocio - Freemium</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .premium-lock { position: relative; filter: grayscale(1); pointer-events: none; opacity: 0.5; }
+        .overlay-msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; font-weight: bold; color: #ef4444; text-align: center; padding: 20px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen pb-20">
 
-    <!-- Header -->
-    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-50">
-        <h1 id="app-title" class="text-xl font-bold text-center">Mi Negocio</h1>
+    <!-- Header con indicador de prueba -->
+    <header class="bg-blue-700 text-white p-4 shadow-lg sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="text-lg font-bold">Mi Negocio Pro</h1>
+        <div id="trial-badge" class="bg-yellow-400 text-blue-900 text-[10px] font-black px-2 py-1 rounded-full animate-pulse">
+            CARGANDO PRUEBA...
+        </div>
     </header>
 
-    <!-- Main Content -->
+    <!-- Modal de Bloqueo Premium -->
+    <div id="premium-modal" class="fixed inset-0 bg-black/80 z-[100] hidden flex items-center justify-center p-6">
+        <div class="bg-white rounded-2xl p-6 text-center max-w-sm w-full">
+            <span class="text-5xl">🔒</span>
+            <h2 class="text-2xl font-bold mt-4">Prueba Finalizada</h2>
+            <p class="text-gray-600 mt-2 text-sm">Tu semana gratuita ha terminado. Para seguir gestionando tus ventas e inventario, activa la versión completa.</p>
+            <button onclick="activarPremium()" class="mt-6 w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg">
+                Activar Versión Pro
+            </button>
+            <p class="mt-4 text-[10px] text-gray-400">Tus datos están seguros, pero el acceso a nuevas ventas está restringido.</p>
+        </div>
+    </div>
+
     <main class="p-4 max-w-md mx-auto">
         
-        <!-- SECCIÓN: VENTAS (CAJA) -->
+        <!-- SECCIÓN: VENTAS -->
         <section id="ventas" class="tab-content active">
-            <h2 class="text-lg font-bold mb-4 flex items-center">🛒 Nueva Venta</h2>
+            <div id="lock-overlay-ventas" class="hidden text-red-600 font-bold text-center mb-4 bg-red-100 p-2 rounded">⚠️ Funciones bloqueadas. Activa Premium.</div>
             
             <div class="bg-white p-4 rounded-lg shadow mb-4">
-                <label class="block text-sm font-medium text-gray-700">Seleccionar Producto</label>
-                <select id="select-producto" class="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50">
-                    <option value="">-- Elige un producto --</option>
-                </select>
-                <button onclick="agregarAlCarrito()" class="mt-3 w-full bg-blue-500 text-white py-2 rounded-md font-bold">Agregar al Carrito</button>
+                <label class="block text-sm font-medium text-gray-700">Producto</label>
+                <select id="select-producto" class="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-gray-50"></select>
+                <button id="btn-agregar" onclick="agregarAlCarrito()" class="mt-3 w-full bg-blue-500 text-white py-2 rounded-md font-bold">Agregar al Carrito</button>
             </div>
 
             <div class="bg-white p-4 rounded-lg shadow">
-                <h3 class="font-bold border-b pb-2 mb-2">Resumen</h3>
-                <div id="lista-carrito" class="space-y-2 mb-4 min-h-[50px]">
-                    <!-- Items del carrito -->
-                </div>
+                <div id="lista-carrito" class="space-y-2 mb-4 min-h-[50px]"></div>
                 <div class="border-t pt-2 space-y-2">
                     <div class="flex justify-between text-xl font-bold text-blue-700">
-                        <span>Total a Cobrar:</span>
+                        <span>Total:</span>
                         <span>$<span id="total-venta">0.00</span></span>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-sm font-medium">Recibí:</label>
-                        <input type="number" id="pago-recibido" oninput="calcularCambio()" placeholder="0.00" class="flex-1 p-2 border border-gray-300 rounded-md">
-                    </div>
+                    <input type="number" id="pago-recibido" oninput="calcularCambio()" placeholder="Cuánto pagó el cliente?" class="w-full p-3 border border-gray-300 rounded-md text-lg">
                     <div class="flex justify-between text-lg font-bold text-green-600">
                         <span>Cambio:</span>
                         <span>$<span id="cambio-cliente">0.00</span></span>
                     </div>
                 </div>
-                <button onclick="finalizarVenta()" id="btn-finalizar" disabled class="mt-4 w-full bg-green-600 text-white py-3 rounded-md font-bold opacity-50 cursor-not-allowed">
+                <button onclick="finalizarVenta()" id="btn-finalizar" disabled class="mt-4 w-full bg-green-600 text-white py-3 rounded-md font-bold opacity-50">
                     CONFIRMAR VENTA
                 </button>
             </div>
@@ -62,380 +69,212 @@
 
         <!-- SECCIÓN: INVENTARIO -->
         <section id="inventario" class="tab-content">
-            <h2 class="text-lg font-bold mb-4">📦 Gestión de Inventario</h2>
-            
-            <!-- Formulario Producto -->
-            <div class="bg-white p-4 rounded-lg shadow mb-6">
-                <h3 class="font-bold mb-3 text-sm uppercase text-gray-500">Nuevo / Editar Producto</h3>
+            <h2 class="text-lg font-bold mb-4">📦 Inventario</h2>
+            <div id="form-inventario-container" class="bg-white p-4 rounded-lg shadow mb-6">
                 <div class="grid grid-cols-1 gap-3">
-                    <input type="text" id="inv-nombre" placeholder="Nombre del producto" class="p-2 border rounded">
+                    <input type="text" id="inv-nombre" placeholder="Nombre" class="p-2 border rounded">
                     <div class="grid grid-cols-2 gap-2">
                         <input type="number" id="inv-costo-compra" placeholder="Costo Compra" class="p-2 border rounded">
-                        <input type="number" id="inv-costo-venta" placeholder="Costo Venta" class="p-2 border rounded">
+                        <input type="number" id="inv-costo-venta" placeholder="Precio Venta" class="p-2 border rounded">
                     </div>
-                    <input type="number" id="inv-stock" placeholder="Stock Inicial" class="p-2 border rounded">
-                    <button onclick="guardarProducto()" class="bg-blue-600 text-white py-2 rounded font-bold">Guardar Producto</button>
+                    <input type="number" id="inv-stock" placeholder="Stock" class="p-2 border rounded">
+                    <button id="btn-guardar-inv" onclick="guardarProducto()" class="bg-blue-600 text-white py-2 rounded font-bold">Guardar</button>
                 </div>
             </div>
-
-            <!-- Lista de Productos -->
-            <div id="lista-inventario" class="space-y-3">
-                <!-- Tarjetas de inventario -->
-            </div>
+            <div id="lista-inventario" class="space-y-3"></div>
         </section>
 
         <!-- SECCIÓN: GANANCIAS -->
         <section id="ganancias" class="tab-content">
-            <h2 class="text-lg font-bold mb-4">💰 Reporte de Ganancias</h2>
-            
+            <h2 class="text-lg font-bold mb-4">💰 Mis Ganancias</h2>
             <div class="grid grid-cols-2 gap-3 mb-6">
                 <div class="bg-white p-4 rounded-lg shadow text-center">
-                    <p class="text-xs text-gray-500 uppercase">Ventas Hoy</p>
+                    <p class="text-[10px] text-gray-400">VENTAS HOY</p>
                     <p class="text-xl font-bold text-blue-600">$<span id="ganancia-bruta-hoy">0.00</span></p>
                 </div>
                 <div class="bg-white p-4 rounded-lg shadow text-center">
-                    <p class="text-xs text-gray-500 uppercase">Ganancia Neta</p>
+                    <p class="text-[10px] text-gray-400">GANANCIA NETA</p>
                     <p class="text-xl font-bold text-green-600">$<span id="ganancia-neta-hoy">0.00</span></p>
                 </div>
             </div>
-
-            <div class="bg-white p-4 rounded-lg shadow">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold">Historial Diario</h3>
-                    <button onclick="exportarGanancias()" class="bg-gray-800 text-white text-xs px-3 py-1 rounded">Exportar CSV</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="p-2">Fecha</th>
-                                <th class="p-2 text-right">Venta</th>
-                                <th class="p-2 text-right">Ganancia</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-ganancias">
-                            <!-- Filas de ganancias -->
-                        </tbody>
-                    </table>
-                </div>
+            <div class="bg-white p-4 rounded-lg shadow overflow-hidden">
+                <button onclick="exportarGanancias()" class="w-full bg-gray-800 text-white py-2 text-sm font-bold mb-2">Exportar Reporte (Excel)</button>
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-gray-100">
+                        <tr><th class="p-2">Fecha</th><th class="p-2">Venta</th><th class="p-2">Ganancia</th></tr>
+                    </thead>
+                    <tbody id="tabla-ganancias"></tbody>
+                </table>
             </div>
         </section>
 
     </main>
 
-    <!-- Navigation Bar -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-2 shadow-lg">
-        <button onclick="showTab('ventas')" class="flex flex-col items-center text-blue-600">
-            <span class="text-xl">🛒</span>
-            <span class="text-[10px] font-bold">VENTAS</span>
-        </button>
-        <button onclick="showTab('inventario')" class="flex flex-col items-center text-gray-500">
-            <span class="text-xl">📦</span>
-            <span class="text-[10px] font-bold">STOCK</span>
-        </button>
-        <button onclick="showTab('ganancias')" class="flex flex-col items-center text-gray-500">
-            <span class="text-xl">💰</span>
-            <span class="text-[10px] font-bold">GANANCIAS</span>
-        </button>
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around p-2 shadow-2xl">
+        <button onclick="showTab('ventas')" class="flex flex-col items-center text-blue-600"><span class="text-xl">🛒</span><span class="text-[10px]">VENTAS</span></button>
+        <button onclick="showTab('inventario')" class="flex flex-col items-center text-gray-400"><span class="text-xl">📦</span><span class="text-[10px]">STOCK</span></button>
+        <button onclick="showTab('ganancias')" class="flex flex-col items-center text-gray-400"><span class="text-xl">💰</span><span class="text-[10px]">REPORTES</span></button>
     </nav>
 
-    <!-- Modal de Notificación simple -->
-    <div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-2 rounded-full text-sm hidden opacity-0 transition-opacity duration-300">
-        Mensaje aquí
-    </div>
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-2 rounded-full text-sm hidden transition-all duration-300"></div>
 
     <script>
-        // --- ESTADO DE LA APP ---
+        // --- LÓGICA DE SUSCRIPCIÓN (FREEMIUM) ---
+        const DIAS_PRUEBA = 7;
+        let isPremium = localStorage.getItem('isPremium') === 'true';
+        let fechaInstalacion = localStorage.getItem('fechaInstalacion');
+
+        if (!fechaInstalacion) {
+            fechaInstalacion = new Date().getTime();
+            localStorage.setItem('fechaInstalacion', fechaInstalacion);
+        }
+
+        function verificarEstadoPremium() {
+            const hoy = new Date().getTime();
+            const diferenciaDias = Math.floor((hoy - fechaInstalacion) / (1000 * 60 * 60 * 24));
+            const diasRestantes = DIAS_PRUEBA - diferenciaDias;
+            const badge = document.getElementById('trial-badge');
+
+            if (isPremium) {
+                badge.innerText = "VERSIÓN PRO ACTIVADA";
+                badge.classList.replace('bg-yellow-400', 'bg-green-500');
+                badge.classList.remove('animate-pulse');
+                return true;
+            }
+
+            if (diasRestantes <= 0) {
+                badge.innerText = "PRUEBA AGOTADA";
+                badge.classList.replace('bg-yellow-400', 'bg-red-500');
+                bloquearFunciones();
+                return false;
+            } else {
+                badge.innerText = `PRUEBA: ${diasRestantes} DÍAS RESTANTES`;
+                return true;
+            }
+        }
+
+        function bloquearFunciones() {
+            // Bloquear botones críticos
+            document.getElementById('btn-finalizar').onclick = () => mostrarModalPremium();
+            document.getElementById('btn-guardar-inv').onclick = () => mostrarModalPremium();
+            document.getElementById('btn-agregar').onclick = () => mostrarModalPremium();
+            
+            // Visualmente deshabilitar formularios
+            document.getElementById('form-inventario-container').classList.add('premium-lock');
+            document.getElementById('lock-overlay-ventas').classList.remove('hidden');
+        }
+
+        function mostrarModalPremium() {
+            document.getElementById('premium-modal').classList.remove('hidden');
+        }
+
+        function activarPremium() {
+            // Aquí iría el proceso de pago. Para este ejemplo, lo activamos:
+            if(confirm("¿Deseas activar la versión Pro ahora?")) {
+                localStorage.setItem('isPremium', 'true');
+                isPremium = true;
+                location.reload(); // Recargar para desbloquear todo
+            }
+        }
+
+        // --- EL RESTO DE LA LÓGICA DE LA APP ---
         let inventario = JSON.parse(localStorage.getItem('inventario')) || [];
         let ventas = JSON.parse(localStorage.getItem('ventas')) || [];
         let carrito = [];
 
-        // --- NAVEGACIÓN ---
         function showTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            
-            // Actualizar colores de iconos
-            document.querySelectorAll('nav button').forEach(btn => {
-                btn.classList.replace('text-blue-600', 'text-gray-500');
-            });
-            event.currentTarget.classList.replace('text-gray-500', 'text-blue-600');
-
+            document.querySelectorAll('nav button').forEach(btn => btn.classList.replace('text-blue-600', 'text-gray-400'));
+            event.currentTarget.classList.replace('text-gray-400', 'text-blue-600');
             if (tabId === 'ventas') actualizarSelectProductos();
             if (tabId === 'inventario') renderInventario();
             if (tabId === 'ganancias') renderGanancias();
         }
 
-        // --- GESTIÓN DE INVENTARIO ---
         function guardarProducto() {
             const nombre = document.getElementById('inv-nombre').value;
             const costoC = parseFloat(document.getElementById('inv-costo-compra').value);
             const costoV = parseFloat(document.getElementById('inv-costo-venta').value);
             const stock = parseInt(document.getElementById('inv-stock').value);
 
-            if (!nombre || isNaN(costoC) || isNaN(costoV) || isNaN(stock)) {
-                showToast("Completa todos los campos");
-                return;
-            }
+            if (!nombre || isNaN(costoC)) return showToast("Faltan datos");
 
             const index = inventario.findIndex(p => p.nombre.toLowerCase() === nombre.toLowerCase());
-            if (index > -1) {
-                inventario[index] = { nombre, costoC, costoV, stock };
-            } else {
-                inventario.push({ nombre, costoC, costoV, stock });
-            }
+            if (index > -1) inventario[index] = { nombre, costoC, costoV, stock };
+            else inventario.push({ nombre, costoC, costoV, stock });
 
             localStorage.setItem('inventario', JSON.stringify(inventario));
             renderInventario();
-            limpiarFormInventario();
-            showToast("Producto guardado");
-        }
-
-        function renderInventario() {
-            const container = document.getElementById('lista-inventario');
-            container.innerHTML = '';
-            inventario.forEach((p, index) => {
-                const colorStock = p.stock < 3 ? 'text-red-600 font-bold' : 'text-gray-600';
-                container.innerHTML += `
-                    <div class="bg-white p-3 rounded-lg shadow border-l-4 ${p.stock < 3 ? 'border-red-500' : 'border-blue-500'} flex justify-between items-center">
-                        <div>
-                            <h4 class="font-bold">${p.nombre}</h4>
-                            <p class="text-xs text-gray-500">Compra: $${p.costoC.toFixed(2)} | Venta: $${p.costoV.toFixed(2)}</p>
-                            <p class="text-sm ${colorStock}">Stock: ${p.stock} unidades</p>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button onclick="editarProducto(${index})" class="text-blue-500">✏️</button>
-                            <button onclick="eliminarProducto(${index})" class="text-red-500">🗑️</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-
-        function editarProducto(idx) {
-            const p = inventario[idx];
-            document.getElementById('inv-nombre').value = p.nombre;
-            document.getElementById('inv-costo-compra').value = p.costoC;
-            document.getElementById('inv-costo-venta').value = p.costoV;
-            document.getElementById('inv-stock').value = p.stock;
-            window.scrollTo(0,0);
-        }
-
-        function eliminarProducto(idx) {
-            if(confirm("¿Eliminar este producto?")) {
-                inventario.splice(idx, 1);
-                localStorage.setItem('inventario', JSON.stringify(inventario));
-                renderInventario();
-            }
-        }
-
-        function limpiarFormInventario() {
-            document.getElementById('inv-nombre').value = '';
-            document.getElementById('inv-costo-compra').value = '';
-            document.getElementById('inv-costo-venta').value = '';
-            document.getElementById('inv-stock').value = '';
-        }
-
-        // --- SISTEMA DE VENTAS ---
-        function actualizarSelectProductos() {
-            const select = document.getElementById('select-producto');
-            select.innerHTML = '<option value="">-- Elige un producto --</option>';
-            inventario.forEach((p, idx) => {
-                if (p.stock > 0) {
-                    select.innerHTML += `<option value="${idx}">${p.nombre} ($${p.costoV}) - Quedan ${p.stock}</option>`;
-                }
-            });
-        }
-
-        function agregarAlCarrito() {
-            const select = document.getElementById('select-producto');
-            const idx = select.value;
-            if (idx === "") return;
-
-            const producto = inventario[idx];
-            
-            // Verificar si ya está en carrito para no exceder stock
-            const enCarrito = carrito.find(item => item.nombre === producto.nombre);
-            if (enCarrito) {
-                if (enCarrito.cantidad < producto.stock) {
-                    enCarrito.cantidad++;
-                } else {
-                    showToast("No hay más stock disponible");
-                }
-            } else {
-                carrito.push({ ...producto, cantidad: 1, originalIdx: idx });
-            }
-            
-            renderCarrito();
-        }
-
-        function renderCarrito() {
-            const container = document.getElementById('lista-carrito');
-            container.innerHTML = '';
-            let total = 0;
-
-            carrito.forEach((item, idx) => {
-                const subtotal = item.costoV * item.cantidad;
-                total += subtotal;
-                container.innerHTML += `
-                    <div class="flex justify-between items-center bg-gray-50 p-2 rounded border">
-                        <div class="text-sm">
-                            <span class="font-bold">${item.nombre}</span> x${item.cantidad}
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <span class="text-sm font-bold">$${subtotal.toFixed(2)}</span>
-                            <button onclick="quitarDelCarrito(${idx})" class="text-red-500 text-xs">❌</button>
-                        </div>
-                    </div>
-                `;
-            });
-
-            document.getElementById('total-venta').innerText = total.toFixed(2);
-            const btn = document.getElementById('btn-finalizar');
-            if (carrito.length > 0) {
-                btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            } else {
-                btn.disabled = true;
-                btn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
-            calcularCambio();
-        }
-
-        function quitarDelCarrito(idx) {
-            carrito.splice(idx, 1);
-            renderCarrito();
-        }
-
-        function calcularCambio() {
-            const total = parseFloat(document.getElementById('total-venta').innerText);
-            const pago = parseFloat(document.getElementById('pago-recibido').value) || 0;
-            const cambio = pago - total;
-            document.getElementById('cambio-cliente').innerText = Math.max(0, cambio).toFixed(2);
+            showToast("Guardado");
         }
 
         function finalizarVenta() {
             const total = parseFloat(document.getElementById('total-venta').innerText);
             const pago = parseFloat(document.getElementById('pago-recibido').value) || 0;
+            if (pago < total) return showToast("Pago insuficiente");
 
-            if (pago < total) {
-                showToast("Pago insuficiente");
-                return;
-            }
-
-            // 1. Descontar Stock
             carrito.forEach(item => {
                 const invItem = inventario.find(p => p.nombre === item.nombre);
-                if (invItem) {
-                    invItem.stock -= item.cantidad;
-                }
+                if (invItem) invItem.stock -= item.cantidad;
             });
 
-            // 2. Calcular ganancia neta de esta venta
-            const gananciaVenta = carrito.reduce((acc, item) => {
-                return acc + ((item.costoV - item.costoC) * item.cantidad);
-            }, 0);
+            const gananciaVenta = carrito.reduce((acc, item) => acc + ((item.costoV - item.costoC) * item.cantidad), 0);
+            ventas.push({ fecha: new Date().toISOString().split('T')[0], total, ganancia: gananciaVenta });
 
-            // 3. Registrar Venta
-            const nuevaVenta = {
-                fecha: new Date().toISOString().split('T')[0],
-                total: total,
-                ganancia: gananciaVenta,
-                timestamp: new Date().getTime()
-            };
-            ventas.push(nuevaVenta);
-
-            // 4. Persistir
             localStorage.setItem('inventario', JSON.stringify(inventario));
             localStorage.setItem('ventas', JSON.stringify(ventas));
-
-            // 5. Reset
             carrito = [];
-            document.getElementById('pago-recibido').value = '';
             renderCarrito();
             actualizarSelectProductos();
-            showToast("✅ Venta Realizada!");
+            showToast("Venta Exitosa");
         }
 
-        // --- REPORTES Y GANANCIAS ---
+        // Funciones auxiliares heredadas de la versión anterior...
+        function actualizarSelectProductos() {
+            const s = document.getElementById('select-producto');
+            s.innerHTML = inventario.map((p,i) => `<option value="${i}">${p.nombre} ($${p.costoV})</option>`).join('');
+        }
+        function agregarAlCarrito() {
+            const idx = document.getElementById('select-producto').value;
+            if (idx==="") return;
+            const p = inventario[idx];
+            const ex = carrito.find(c => c.nombre === p.nombre);
+            if (ex) ex.cantidad++; else carrito.push({...p, cantidad: 1});
+            renderCarrito();
+        }
+        function renderCarrito() {
+            const c = document.getElementById('lista-carrito');
+            let total = 0;
+            c.innerHTML = carrito.map((item, i) => {
+                total += item.costoV * item.cantidad;
+                return `<div class="flex justify-between text-sm bg-gray-50 p-1 border"><span>${item.nombre} x${item.cantidad}</span><b>$${(item.costoV*item.cantidad).toFixed(2)}</b></div>`;
+            }).join('');
+            document.getElementById('total-venta').innerText = total.toFixed(2);
+            document.getElementById('btn-finalizar').disabled = carrito.length === 0;
+        }
+        function renderInventario() {
+            const c = document.getElementById('lista-inventario');
+            c.innerHTML = inventario.map(p => `<div class="bg-white p-2 rounded shadow flex justify-between"><div><b>${p.nombre}</b><br><small>Stock: ${p.stock}</small></div><div>$${p.costoV}</div></div>`).join('');
+        }
         function renderGanancias() {
-            const hoy = new Date().toISOString().split('T')[0];
-            const ventasHoy = ventas.filter(v => v.fecha === hoy);
-            
-            const brutaHoy = ventasHoy.reduce((acc, v) => acc + v.total, 0);
-            const netaHoy = ventasHoy.reduce((acc, v) => acc + v.ganancia, 0);
-
-            document.getElementById('ganancia-bruta-hoy').innerText = brutaHoy.toFixed(2);
-            document.getElementById('ganancia-neta-hoy').innerText = netaHoy.toFixed(2);
-
-            // Agrupar por fecha para la tabla
-            const agrupado = ventas.reduce((acc, v) => {
-                if (!acc[v.fecha]) acc[v.fecha] = { venta: 0, ganancia: 0 };
-                acc[v.fecha].venta += v.total;
-                acc[v.fecha].ganancia += v.ganancia;
-                return acc;
-            }, {});
-
-            const tabla = document.getElementById('tabla-ganancias');
-            tabla.innerHTML = '';
-            
-            // Ordenar fechas descendente
-            const fechas = Object.keys(agrupado).sort().reverse();
-            
-            fechas.forEach(fecha => {
-                const data = agrupado[fecha];
-                tabla.innerHTML += `
-                    <tr class="border-b">
-                        <td class="p-2">${fecha}</td>
-                        <td class="p-2 text-right">$${data.venta.toFixed(2)}</td>
-                        <td class="p-2 text-right text-green-600 font-bold">$${data.ganancia.toFixed(2)}</td>
-                    </tr>
-                `;
-            });
+            const t = document.getElementById('tabla-ganancias');
+            t.innerHTML = ventas.map(v => `<tr><td class="p-2">${v.fecha}</td><td class="p-2">$${v.total}</td><td class="p-2 text-green-600">$${v.ganancia.toFixed(2)}</td></tr>`).join('');
+        }
+        function calcularCambio() {
+            const t = parseFloat(document.getElementById('total-venta').innerText);
+            const p = parseFloat(document.getElementById('pago-recibido').value) || 0;
+            document.getElementById('cambio-cliente').innerText = Math.max(0, p - t).toFixed(2);
+        }
+        function showToast(m) {
+            const t = document.getElementById('toast');
+            t.innerText = m; t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 2000);
         }
 
-        function exportarGanancias() {
-            if (ventas.length === 0) {
-                showToast("No hay datos para exportar");
-                return;
-            }
-
-            let csvContent = "data:text/csv;charset=utf-8,Fecha,Total Venta,Ganancia Neta\n";
-            
-            const agrupado = ventas.reduce((acc, v) => {
-                if (!acc[v.fecha]) acc[v.fecha] = { venta: 0, ganancia: 0 };
-                acc[v.fecha].venta += v.total;
-                acc[v.fecha].ganancia += v.ganancia;
-                return acc;
-            }, {});
-
-            Object.keys(agrupado).sort().forEach(fecha => {
-                csvContent += `${fecha},${agrupado[fecha].venta.toFixed(2)},${agrupado[fecha].ganancia.toFixed(2)}\n`;
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `ganancias_negocio_${new Date().toLocaleDateString()}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // --- UTILIDADES ---
-        function showToast(msj) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msj;
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('opacity-100'), 10);
-            setTimeout(() => {
-                toast.classList.remove('opacity-100');
-                setTimeout(() => toast.classList.add('hidden'), 300);
-            }, 2500);
-        }
-
-        // Inicializar
-        actualizarSelectProductos();
+        // Inicio
+        verificarEstadoPremium();
     </script>
 </body>
 </html>
+
